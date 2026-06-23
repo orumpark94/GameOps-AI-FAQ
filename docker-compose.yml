@@ -1,0 +1,23 @@
+services:
+  chatbot-api:
+    build:
+      context: ./apps/chatbot-api
+    environment:
+      NODE_ENV: development
+      PORT: "8080"
+      AWS_REGION: ap-northeast-2
+      RAG_PROVIDER: mock
+    ports:
+      - "8080:8080"
+
+  chatbot-web:
+    build:
+      context: ./apps/chatbot-web
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      CHATBOT_API_BASE_URL: http://chatbot-api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - chatbot-api
