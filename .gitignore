@@ -17,6 +17,21 @@ Thumbs.db
 
 *.tsbuildinfo
 
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars
+
+aws-account-accesskey.txt
+
+
 
 #vm ware 계정명 : sjpark
 #vm ware 서버 IP : 192.168.8.140
