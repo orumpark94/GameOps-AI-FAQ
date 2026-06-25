@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "game",
+    "category_label": "게임문의",
+    "document_type": "faq",
+    "topic": "character_deleted",
+    "tags": ["캐릭터삭제", "캐릭터복구", "삭제대기", "서버"],
+    "handoff_required": true
+  }
+}

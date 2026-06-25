@@ -8,10 +8,16 @@ export const categories = [
 export type Category = (typeof categories)[number];
 export type CategoryValue = Category["value"];
 
+export type ChatHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export type ChatRequest = {
   category: CategoryValue;
   categoryLabel: string;
   question: string;
+  history: ChatHistoryMessage[];
 };
 
 export type ChatSource = {
@@ -22,4 +28,9 @@ export type ChatSource = {
 export type ChatResponse = {
   answer: string;
   sources: ChatSource[];
+};
+
+export type ChatMessage = ChatHistoryMessage & {
+  id: string;
+  sources?: ChatSource[];
 };

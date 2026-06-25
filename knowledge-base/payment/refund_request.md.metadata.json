@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "payment",
+    "category_label": "결제문의",
+    "document_type": "faq",
+    "topic": "refund_request",
+    "tags": ["환불", "구매취소", "청약철회", "앱스토어", "주문번호"],
+    "handoff_required": true
+  }
+}

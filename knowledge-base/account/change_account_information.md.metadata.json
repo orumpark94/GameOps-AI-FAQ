@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "account",
+    "category_label": "계정문의",
+    "document_type": "faq",
+    "topic": "change_account_information",
+    "tags": ["이메일변경", "휴대전화변경", "계정정보", "본인인증"],
+    "handoff_required": true
+  }
+}

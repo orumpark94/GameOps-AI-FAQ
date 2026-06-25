@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "security_report",
+    "category_label": "해킹/신고",
+    "document_type": "faq",
+    "topic": "hacking_suspected",
+    "tags": ["해킹", "무단접속", "계정도용", "로그인기록", "2차인증"],
+    "handoff_required": true
+  }
+}

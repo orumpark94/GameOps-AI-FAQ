@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "game",
+    "category_label": "게임문의",
+    "document_type": "faq",
+    "topic": "quest_progress_problem",
+    "tags": ["퀘스트", "진행불가", "보상", "NPC", "선행조건"],
+    "handoff_required": false
+  }
+}

@@ -1,0 +1,37 @@
+aws_region = "ap-northeast-2"
+
+vpc_cidr = "10.20.0.0/16"
+
+availability_zones = [
+  "ap-northeast-2a",
+  "ap-northeast-2c"
+]
+
+public_subnet_cidrs = [
+  "10.20.0.0/24",
+  "10.20.1.0/24"
+]
+
+private_subnet_cidrs = [
+  "10.20.10.0/24",
+  "10.20.11.0/24"
+]
+
+eks_cluster_name = "gameops-ai-faq-dev"
+
+# Replace this with the public IPv4 address of the PC running Terraform.
+# Example: ["203.0.113.10/32"]
+eks_public_access_cidrs = ["0.0.0.0/0"]
+
+single_nat_gateway = true
+
+node_instance_types = ["t3.medium"]
+node_capacity_type  = "ON_DEMAND"
+node_desired_size   = 2
+node_min_size       = 2
+node_max_size       = 2
+
+# System-defined APAC inference profile for the lowest-cost text-only Nova model.
+bedrock_generation_inference_profile_id = "apac.amazon.nova-micro-v1:0"
+
+knowledge_base_document_prefix = "dev/"

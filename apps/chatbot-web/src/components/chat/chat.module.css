@@ -70,6 +70,26 @@
   gap: 12px;
 }
 
+.chatHistory {
+  display: grid;
+  gap: 14px;
+  max-height: 520px;
+  margin-bottom: 18px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.userMessage {
+  justify-self: end;
+  max-width: min(78%, 520px);
+  border-radius: 6px;
+  padding: 11px 13px;
+  background: var(--primary);
+  color: #ffffff;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 .questionInput {
   min-height: 120px;
   width: 100%;
@@ -102,9 +122,9 @@
 }
 
 .answer {
-  margin-top: 18px;
-  border-top: 1px solid var(--line);
-  padding-top: 18px;
+  max-width: min(90%, 620px);
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 13px;
   white-space: pre-wrap;
   line-height: 1.7;
 }

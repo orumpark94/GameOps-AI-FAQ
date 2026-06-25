@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "payment",
+    "category_label": "결제문의",
+    "document_type": "faq",
+    "topic": "item_not_received",
+    "tags": ["결제", "아이템", "미지급", "상품", "영수증", "주문번호"],
+    "handoff_required": true
+  }
+}

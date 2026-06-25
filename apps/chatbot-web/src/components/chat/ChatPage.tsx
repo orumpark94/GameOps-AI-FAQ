@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { requestChatAnswer } from "../../lib/chatApi";
-import { categories, type CategoryValue, type ChatResponse } from "../../types/chat";
+import { categories, type CategoryValue, type ChatMessage } from "../../types/chat";
 import { ChatAnswer } from "./ChatAnswer";
 import { ChatForm } from "./ChatForm";
 import { CategorySelector } from "./CategorySelector";
@@ -11,7 +11,7 @@ import styles from "./chat.module.css";
 export function ChatPage() {
   const [category, setCategory] = useState<CategoryValue>("account");
   const [question, setQuestion] = useState("");
-  const [response, setResponse] = useState<ChatResponse | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,23 +22,60 @@ export function ChatPage() {
 
   async function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const trimmedQuestion = question.trim();
+
+    if (trimmedQuestion.length < 2) {
+      return;
+    }
+
     setError("");
-    setResponse(null);
     setIsLoading(true);
+
+    const history = messages.slice(-2).map(({ role, content }) => ({ role, content }));
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmedQuestion
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setQuestion("");
 
     try {
       const answer = await requestChatAnswer({
         category: selectedCategory.value,
         categoryLabel: selectedCategory.label,
-        question
+        question: trimmedQuestion,
+        history
       });
 
-      setResponse(answer);
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: answer.answer,
+          sources: answer.sources
+        }
+      ]);
     } catch (caught) {
+      setMessages((current) => current.filter((message) => message.id !== userMessage.id));
+      setQuestion(trimmedQuestion);
       setError(caught instanceof Error ? caught.message : "알 수 없는 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function selectCategory(nextCategory: CategoryValue) {
+    if (nextCategory === category || isLoading) {
+      return;
+    }
+
+    setCategory(nextCategory);
+    setMessages([]);
+    setQuestion("");
+    setError("");
   }
 
   return (
@@ -52,11 +89,28 @@ export function ChatPage() {
         <section className={styles.workspace}>
           <aside className={styles.panel}>
             <h2>문의 유형</h2>
-            <CategorySelector categories={categories} selected={category} onSelect={setCategory} />
+            <CategorySelector categories={categories} selected={category} onSelect={selectCategory} />
           </aside>
 
           <section className={styles.panel}>
             <h2>질문</h2>
+            {messages.length > 0 ? (
+              <div className={styles.chatHistory}>
+                {messages.map((message) =>
+                  message.role === "user" ? (
+                    <div className={styles.userMessage} key={message.id}>
+                      {message.content}
+                    </div>
+                  ) : (
+                    <ChatAnswer
+                      answer={message.content}
+                      key={message.id}
+                      sources={message.sources ?? []}
+                    />
+                  )
+                )}
+              </div>
+            ) : null}
             <ChatForm
               isLoading={isLoading}
               onQuestionChange={setQuestion}
@@ -64,7 +118,6 @@ export function ChatPage() {
               question={question}
             />
             {error ? <div className={styles.error}>{error}</div> : null}
-            {response ? <ChatAnswer response={response} /> : null}
           </section>
         </section>
       </div>

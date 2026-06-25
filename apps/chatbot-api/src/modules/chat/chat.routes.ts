@@ -25,7 +25,15 @@ export const registerChatRoutes: FastifyPluginAsync<ChatRoutesOptions> = async (
       });
     }
 
-    const response = await chatService.answer(parsed.data);
-    return reply.send(response);
+    try {
+      const response = await chatService.answer(parsed.data);
+      return reply.send(response);
+    } catch (error) {
+      request.log.error({ err: error }, "Failed to process chat request");
+
+      return reply.status(502).send({
+        message: "답변 생성 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
+      });
+    }
   });
 };

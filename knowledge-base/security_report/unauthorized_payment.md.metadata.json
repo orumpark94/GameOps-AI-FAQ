@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "security_report",
+    "category_label": "해킹/신고",
+    "document_type": "faq",
+    "topic": "unauthorized_payment",
+    "tags": ["결제도용", "무단결제", "계정도용", "주문번호", "카드승인"],
+    "handoff_required": true
+  }
+}

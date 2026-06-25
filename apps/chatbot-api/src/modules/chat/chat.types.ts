@@ -1,9 +1,15 @@
 import type { Category } from "./category-policy.js";
 
+export type ChatHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export type ChatRequest = {
   category: Category;
   categoryLabel: string;
   question: string;
+  history: ChatHistoryMessage[];
 };
 
 export type ChatSource = {

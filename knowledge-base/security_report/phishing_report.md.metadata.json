@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "security_report",
+    "category_label": "해킹/신고",
+    "document_type": "faq",
+    "topic": "phishing_report",
+    "tags": ["피싱", "운영자사칭", "의심링크", "계정도용", "인증번호"],
+    "handoff_required": true
+  }
+}

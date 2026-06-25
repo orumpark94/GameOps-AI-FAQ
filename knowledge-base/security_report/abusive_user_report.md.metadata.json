@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "security_report",
+    "category_label": "해킹/신고",
+    "document_type": "faq",
+    "topic": "abusive_user_report",
+    "tags": ["욕설", "괴롭힘", "신고", "채팅", "부적절한닉네임"],
+    "handoff_required": true
+  }
+}

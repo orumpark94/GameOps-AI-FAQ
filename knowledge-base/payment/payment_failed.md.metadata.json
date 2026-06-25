@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "payment",
+    "category_label": "결제문의",
+    "document_type": "faq",
+    "topic": "payment_failed",
+    "tags": ["결제실패", "오류코드", "승인", "결제한도", "주문번호"],
+    "handoff_required": false
+  }
+}

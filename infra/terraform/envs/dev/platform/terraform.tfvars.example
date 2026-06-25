@@ -1,0 +1,17 @@
+namespace         = "gameops-chatbot-dev"
+initial_image_tag = "latest"
+
+web_replicas = 2
+api_replicas = 2
+rag_provider = "bedrock"
+
+# Tune this after collecting retrieval scores from representative questions.
+bedrock_retrieval_score_threshold = 0.6
+customer_support_email            = "sjpark@hanbitsoft.com"
+
+# Leave null for initial ALB HTTP testing.
+host_name          = null
+acm_certificate_arn = null
+
+# Pin this after selecting and reviewing a chart version.
+alb_controller_chart_version = null

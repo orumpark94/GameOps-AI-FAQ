@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "payment",
+    "category_label": "결제문의",
+    "document_type": "faq",
+    "topic": "duplicate_charge",
+    "tags": ["중복결제", "이중결제", "카드승인", "주문번호", "영수증"],
+    "handoff_required": true
+  }
+}

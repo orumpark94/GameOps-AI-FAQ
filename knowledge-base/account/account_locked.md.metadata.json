@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "category": "account",
+    "category_label": "계정문의",
+    "document_type": "faq",
+    "topic": "account_locked",
+    "tags": ["계정잠금", "로그인실패", "접속제한", "비밀번호"],
+    "handoff_required": false
+  }
+}
