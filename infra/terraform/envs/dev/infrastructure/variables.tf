@@ -99,3 +99,21 @@ variable "knowledge_base_document_prefix" {
   type        = string
   default     = "dev/"
 }
+
+variable "github_repository" {
+  description = "GitHub repository allowed to assume the deployment role."
+  type        = string
+  default     = "orumpark94/GameOps-AI-FAQ"
+}
+
+variable "github_deployment_branch" {
+  description = "GitHub branch allowed to assume the deployment role."
+  type        = string
+  default     = "main"
+}
+
+variable "github_oidc_provider_arn" {
+  description = "Existing account-level GitHub OIDC provider ARN. Null creates one."
+  type        = string
+  default     = null
+}

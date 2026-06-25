@@ -19,9 +19,8 @@ private_subnet_cidrs = [
 
 eks_cluster_name = "gameops-ai-faq-dev"
 
-# Replace this with the public IPv4 address of the PC running Terraform.
-# Example: ["203.0.113.10/32"]
-eks_public_access_cidrs = ["0.0.0.0/0"]
+# Replace this if the public IPv4 address of the PC running kubectl changes.
+eks_public_access_cidrs = ["116.122.56.145/32"]
 
 single_nat_gateway = true
 
@@ -35,3 +34,10 @@ node_max_size       = 2
 bedrock_generation_inference_profile_id = "apac.amazon.nova-micro-v1:0"
 
 knowledge_base_document_prefix = "dev/"
+
+github_repository        = "orumpark94/GameOps-AI-FAQ"
+github_deployment_branch = "main"
+
+# If the AWS account already has the GitHub OIDC provider, set its ARN here.
+# Example: "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+github_oidc_provider_arn = null

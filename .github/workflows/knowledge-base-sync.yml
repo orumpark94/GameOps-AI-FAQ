@@ -1,0 +1,170 @@
+name: Sync Knowledge Base Documents
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "knowledge-base/**"
+      - ".github/workflows/knowledge-base-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: knowledge-base-sync
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  PARAMETER_PREFIX: /gameops-ai-faq/dev
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate Knowledge Base files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          find knowledge-base -type f -name "*.metadata.json" -print0 |
+            xargs -0 -r -n1 jq empty
+
+          while IFS= read -r -d '' document; do
+            metadata="${document}.metadata.json"
+
+            if [[ ! -f "${metadata}" ]]; then
+              echo "Missing metadata file: ${metadata}" >&2
+              exit 1
+            fi
+          done < <(find knowledge-base -type f -name "*.md" ! -name "README.md" -print0)
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: gameops-ai-faq-kb-sync
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Load Knowledge Base parameters
+        id: parameters
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUCKET="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/kb/document-bucket" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          PREFIX="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/kb/document-prefix" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          KNOWLEDGE_BASE_ID="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/kb/knowledge-base-id" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          DATA_SOURCE_ID="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/kb/data-source-id" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          echo "bucket=${BUCKET}" >> "${GITHUB_OUTPUT}"
+          echo "prefix=${PREFIX}" >> "${GITHUB_OUTPUT}"
+          echo "knowledge_base_id=${KNOWLEDGE_BASE_ID}" >> "${GITHUB_OUTPUT}"
+          echo "data_source_id=${DATA_SOURCE_ID}" >> "${GITHUB_OUTPUT}"
+
+      - name: Sync documents to S3
+        shell: bash
+        env:
+          BUCKET: ${{ steps.parameters.outputs.bucket }}
+          PREFIX: ${{ steps.parameters.outputs.prefix }}
+        run: |
+          set -euo pipefail
+
+          aws s3 sync \
+            knowledge-base \
+            "s3://${BUCKET}/${PREFIX}" \
+            --delete \
+            --exclude "README.md"
+
+      - name: Start ingestion job
+        id: ingestion
+        shell: bash
+        env:
+          KNOWLEDGE_BASE_ID: ${{ steps.parameters.outputs.knowledge_base_id }}
+          DATA_SOURCE_ID: ${{ steps.parameters.outputs.data_source_id }}
+        run: |
+          set -euo pipefail
+
+          INGESTION_JOB_ID="$(aws bedrock-agent start-ingestion-job \
+            --knowledge-base-id "${KNOWLEDGE_BASE_ID}" \
+            --data-source-id "${DATA_SOURCE_ID}" \
+            --description "GitHub Actions ${GITHUB_SHA}" \
+            --query "ingestionJob.ingestionJobId" \
+            --output text)"
+
+          echo "ingestion_job_id=${INGESTION_JOB_ID}" >> "${GITHUB_OUTPUT}"
+
+      - name: Wait for ingestion completion
+        shell: bash
+        env:
+          KNOWLEDGE_BASE_ID: ${{ steps.parameters.outputs.knowledge_base_id }}
+          DATA_SOURCE_ID: ${{ steps.parameters.outputs.data_source_id }}
+          INGESTION_JOB_ID: ${{ steps.ingestion.outputs.ingestion_job_id }}
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 60); do
+            STATUS="$(aws bedrock-agent get-ingestion-job \
+              --knowledge-base-id "${KNOWLEDGE_BASE_ID}" \
+              --data-source-id "${DATA_SOURCE_ID}" \
+              --ingestion-job-id "${INGESTION_JOB_ID}" \
+              --query "ingestionJob.status" \
+              --output text)"
+
+            echo "Ingestion status: ${STATUS}"
+
+            case "${STATUS}" in
+              COMPLETE)
+                exit 0
+                ;;
+              FAILED|STOPPED)
+                aws bedrock-agent get-ingestion-job \
+                  --knowledge-base-id "${KNOWLEDGE_BASE_ID}" \
+                  --data-source-id "${DATA_SOURCE_ID}" \
+                  --ingestion-job-id "${INGESTION_JOB_ID}"
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "Knowledge Base ingestion timed out." >&2
+          exit 1
+
+      - name: Write sync summary
+        shell: bash
+        env:
+          BUCKET: ${{ steps.parameters.outputs.bucket }}
+          PREFIX: ${{ steps.parameters.outputs.prefix }}
+          INGESTION_JOB_ID: ${{ steps.ingestion.outputs.ingestion_job_id }}
+        run: |
+          {
+            echo "## Knowledge Base sync"
+            echo
+            echo "- S3 location: \`s3://${BUCKET}/${PREFIX}\`"
+            echo "- Ingestion job: \`${INGESTION_JOB_ID}\`"
+            echo "- Status: \`COMPLETE\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

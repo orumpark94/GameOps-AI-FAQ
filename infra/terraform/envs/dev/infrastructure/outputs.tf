@@ -73,3 +73,18 @@ output "bedrock_generation_model_arn" {
   description = "Bedrock Nova Micro inference profile ARN used by chatbot-api."
   value       = local.generation_inference_profile_arn
 }
+
+output "deployment_parameter_prefix" {
+  description = "SSM Parameter Store path containing current deployment resource values."
+  value       = local.parameter_prefix
+}
+
+output "deployment_parameter_names" {
+  description = "SSM Parameter Store names consumed by GitHub Actions."
+  value       = local.deployment_parameter_names
+}
+
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions ECR, S3, and Bedrock ingestion workflows."
+  value       = module.github_oidc.role_arn
+}

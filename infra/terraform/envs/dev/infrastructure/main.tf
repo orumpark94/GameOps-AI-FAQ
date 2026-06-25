@@ -85,3 +85,21 @@ module "workload_iam" {
     local.nova_micro_foundation_model_arn
   ]
 }
+
+module "github_oidc" {
+  source = "../../../modules/github-oidc"
+
+  name_prefix                = local.name_prefix
+  aws_region                 = var.aws_region
+  account_id                 = data.aws_caller_identity.current.account_id
+  github_repository          = var.github_repository
+  github_branch              = var.github_deployment_branch
+  existing_oidc_provider_arn = var.github_oidc_provider_arn
+  ecr_repository_arns        = values(module.ecr.repository_arns)
+  document_bucket_arn        = module.knowledge_base.document_bucket_arn
+  document_prefix            = module.knowledge_base.document_prefix
+  knowledge_base_arn         = module.knowledge_base.knowledge_base_arn
+  ssm_parameter_prefix       = local.parameter_prefix
+
+  depends_on = [aws_ssm_parameter.deployment]
+}

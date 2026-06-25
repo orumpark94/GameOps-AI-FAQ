@@ -1,0 +1,146 @@
+name: Build and Push Application Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/chatbot-api/**"
+      - "apps/chatbot-web/**"
+      - ".github/workflows/app-images.yml"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Application image to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - chatbot-api
+          - chatbot-web
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: app-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  PARAMETER_PREFIX: /gameops-ai-faq/dev
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: gameops-ai-faq-app-images
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Load ECR repository URLs
+        id: parameters
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API_URL="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/ecr/api-repository-url" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          WEB_URL="$(aws ssm get-parameter \
+            --name "${PARAMETER_PREFIX}/ecr/web-repository-url" \
+            --query "Parameter.Value" \
+            --output text)"
+
+          echo "api_url=${API_URL}" >> "${GITHUB_OUTPUT}"
+          echo "web_url=${WEB_URL}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Amazon ECR
+        shell: bash
+        env:
+          API_URL: ${{ steps.parameters.outputs.api_url }}
+        run: |
+          set -euo pipefail
+
+          REGISTRY="${API_URL%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" |
+            docker login --username AWS --password-stdin "${REGISTRY}"
+
+      - name: Select build target
+        id: target
+        shell: bash
+        env:
+          REQUESTED_SERVICE: ${{ inputs.service }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "service=${REQUESTED_SERVICE}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "service=all" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Build and push chatbot-api
+        if: steps.target.outputs.service == 'all' || steps.target.outputs.service == 'chatbot-api'
+        shell: bash
+        env:
+          IMAGE_URL: ${{ steps.parameters.outputs.api_url }}
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --file apps/chatbot-api/Dockerfile \
+            --tag "${IMAGE_URL}:${GITHUB_SHA}" \
+            --tag "${IMAGE_URL}:latest" \
+            apps/chatbot-api
+
+          docker push "${IMAGE_URL}:${GITHUB_SHA}"
+          docker push "${IMAGE_URL}:latest"
+
+      - name: Build and push chatbot-web
+        if: steps.target.outputs.service == 'all' || steps.target.outputs.service == 'chatbot-web'
+        shell: bash
+        env:
+          IMAGE_URL: ${{ steps.parameters.outputs.web_url }}
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --file apps/chatbot-web/Dockerfile \
+            --tag "${IMAGE_URL}:${GITHUB_SHA}" \
+            --tag "${IMAGE_URL}:latest" \
+            apps/chatbot-web
+
+          docker push "${IMAGE_URL}:${GITHUB_SHA}"
+          docker push "${IMAGE_URL}:latest"
+
+      - name: Write deployment summary
+        shell: bash
+        env:
+          API_URL: ${{ steps.parameters.outputs.api_url }}
+          WEB_URL: ${{ steps.parameters.outputs.web_url }}
+          SELECTED_SERVICE: ${{ steps.target.outputs.service }}
+        run: |
+          {
+            echo "## Application images"
+            echo
+            echo "- Selected service: \`${SELECTED_SERVICE}\`"
+            echo "- Image tag: \`${GITHUB_SHA}\`"
+            echo "- API image: \`${API_URL}:${GITHUB_SHA}\`"
+            echo "- Web image: \`${WEB_URL}:${GITHUB_SHA}\`"
+            echo
+            echo "Local deployment command:"
+            echo
+            echo '```powershell'
+            echo ".\\scripts\\deploy-app.ps1 -Service all -ImageTag ${GITHUB_SHA}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"

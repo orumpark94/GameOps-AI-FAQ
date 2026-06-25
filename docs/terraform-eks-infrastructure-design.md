@@ -85,6 +85,7 @@ modules/eks
 = EKS Cluster와 Node Group을 어떻게 만들 것인가
 
 modules/knowledge-base
+modules/github-oidc
 = S3와 Bedrock Knowledge Base를 어떻게 연결할 것인가
 ```
 

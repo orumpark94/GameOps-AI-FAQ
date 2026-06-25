@@ -3,6 +3,11 @@ output "document_bucket_name" {
   value       = aws_s3_bucket.documents.bucket
 }
 
+output "document_bucket_arn" {
+  description = "ARN of the S3 bucket containing knowledge base source documents."
+  value       = aws_s3_bucket.documents.arn
+}
+
 output "document_prefix" {
   description = "S3 document prefix used by the Bedrock data source."
   value       = var.document_prefix
