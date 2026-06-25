@@ -15,7 +15,7 @@ export function buildApp(config: AppConfig) {
   app.get("/health", async () => ({
     status: "ok",
     service: "chatbot-api",
-    ragProvider: config.ragProvider
+    ragBackend: "bedrock-knowledge-base"
   }));
 
   void app.register(registerChatRoutes, {

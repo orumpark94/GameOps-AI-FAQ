@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { AppConfig } from "../../config/env.js";
-import { createRagService } from "../../integrations/rag/rag.factory.js";
+import { BedrockKnowledgeBaseService } from "../../integrations/bedrock/bedrock-kb.service.js";
 import { chatRequestSchema } from "./chat.schema.js";
 import { ChatService } from "./chat.service.js";
 
@@ -9,7 +9,7 @@ type ChatRoutesOptions = {
 };
 
 export const registerChatRoutes: FastifyPluginAsync<ChatRoutesOptions> = async (app, options) => {
-  const chatService = new ChatService(createRagService(options.config));
+  const chatService = new ChatService(new BedrockKnowledgeBaseService(options.config));
 
   app.get("/categories", async () => ({
     categories: chatService.getCategories()

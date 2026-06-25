@@ -3,7 +3,6 @@ initial_image_tag = "latest"
 
 web_replicas = 2
 api_replicas = 2
-rag_provider = "bedrock"
 
 # Tune this after collecting retrieval scores from representative questions.
 bedrock_retrieval_score_threshold = 0.6

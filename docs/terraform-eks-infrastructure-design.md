@@ -847,11 +847,15 @@ ConfigMap:
 
 ```text
 AWS_REGION
-RAG_PROVIDER
 BEDROCK_KNOWLEDGE_BASE_ID
 BEDROCK_MODEL_ARN
+BEDROCK_RETRIEVAL_SCORE_THRESHOLD
+CUSTOMER_SUPPORT_EMAIL
 CHATBOT_API_BASE_URL
 ```
+
+`chatbot-api`는 Bedrock Knowledge Base 전용으로 동작한다. Mock Provider 분기는 없으며,
+Knowledge Base ID 또는 Model ARN이 누락되면 애플리케이션이 시작 단계에서 실패한다.
 
 중요한 연결:
 

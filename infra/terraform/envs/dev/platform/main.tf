@@ -128,7 +128,6 @@ resource "kubernetes_config_map_v1" "app" {
 
   data = {
     AWS_REGION                        = local.infrastructure.aws_region
-    RAG_PROVIDER                      = var.rag_provider
     BEDROCK_KNOWLEDGE_BASE_ID         = local.infrastructure.bedrock_knowledge_base_id
     BEDROCK_MODEL_ARN                 = local.infrastructure.bedrock_generation_model_arn
     BEDROCK_RETRIEVAL_SCORE_THRESHOLD = tostring(var.bedrock_retrieval_score_threshold)

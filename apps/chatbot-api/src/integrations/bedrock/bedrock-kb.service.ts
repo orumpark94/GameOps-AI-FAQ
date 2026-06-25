@@ -35,10 +35,6 @@ export class BedrockKnowledgeBaseService implements RagService {
   private readonly queryRewriter: QueryRewriterService;
 
   constructor(private readonly config: AppConfig) {
-    if (!config.knowledgeBaseId || !config.modelArn) {
-      throw new Error("BEDROCK_KNOWLEDGE_BASE_ID and BEDROCK_MODEL_ARN are required when RAG_PROVIDER=bedrock");
-    }
-
     this.knowledgeBaseClient = new BedrockAgentRuntimeClient({ region: config.awsRegion });
     this.modelClient = new BedrockRuntimeClient({ region: config.awsRegion });
     this.queryRewriter = new QueryRewriterService(this.modelClient, config.modelArn);

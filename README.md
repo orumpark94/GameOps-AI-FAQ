@@ -1,6 +1,13 @@
 # GameOps-AI-FAQ
 게임 FAQ, 공지사항, 패치노트, 운영정책 문서를 기반으로 사용자의 질문에 답변하는 Amazon Bedrock 기반 RAG 챗봇 시스템을 AWS EKS 위에 구축한다.
 
+## 프로젝트 문서
+
+- [AWS 네트워크 기초](docs/aws-networking-fundamentals.md)
+- [Terraform 및 EKS 인프라 설계](docs/terraform-eks-infrastructure-design.md)
+- [RAG 답변 안전성과 대화 처리](docs/rag-answer-safety-and-conversation.md)
+- [Bedrock 전용 애플리케이션 실행 구조](docs/bedrock-only-application-runtime.md)
+
 목표
 게임 FAQ, 공지사항, 패치노트, 운영정책 문서를 기반으로 사용자의 질문에 답변하는 Amazon Bedrock 기반 RAG 챗봇 시스템을 AWS EKS 위에 구축한다.
 인프라는 Terraform으로 관리하고, GitHub Actions를 통해 인프라 배포와 애플리케이션 배포를 자동화한다.

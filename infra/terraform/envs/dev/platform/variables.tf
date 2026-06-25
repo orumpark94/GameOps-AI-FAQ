@@ -22,17 +22,6 @@ variable "api_replicas" {
   default     = 2
 }
 
-variable "rag_provider" {
-  description = "RAG implementation used by chatbot-api."
-  type        = string
-  default     = "bedrock"
-
-  validation {
-    condition     = contains(["mock", "bedrock"], var.rag_provider)
-    error_message = "rag_provider must be mock or bedrock."
-  }
-}
-
 variable "bedrock_retrieval_score_threshold" {
   description = "Minimum Knowledge Base retrieval score required before generating an answer."
   type        = number
