@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { requestChatAnswer } from "../../lib/chatApi";
+import { createClientId } from "../../lib/createClientId";
 import { categories, type CategoryValue, type ChatMessage } from "../../types/chat";
 import { ChatAnswer } from "./ChatAnswer";
 import { ChatForm } from "./ChatForm";
@@ -33,7 +34,7 @@ export function ChatPage() {
 
     const history = messages.slice(-2).map(({ role, content }) => ({ role, content }));
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: createClientId(),
       role: "user",
       content: trimmedQuestion
     };
@@ -52,7 +53,7 @@ export function ChatPage() {
       setMessages((current) => [
         ...current,
         {
-          id: crypto.randomUUID(),
+          id: createClientId(),
           role: "assistant",
           content: answer.answer,
           sources: answer.sources
