@@ -124,7 +124,7 @@ resource "aws_iam_role_policy" "bedrock" {
 
 resource "aws_bedrockagent_knowledge_base" "this" {
   name        = "${var.name_prefix}-kb"
-  description = "Game FAQ, notices, patch notes, and operation policies."
+  description = "Customer support FAQs for game, payment, account, and security or report inquiries."
   role_arn    = aws_iam_role.bedrock.arn
 
   knowledge_base_configuration {

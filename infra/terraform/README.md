@@ -1,62 +1,30 @@
-# Terraform
+# Terraform 운영 가이드
 
-GameOps AI FAQ의 AWS Infrastructure와 EKS Platform을 서로 다른 Terraform State로 관리한다.
+GameOps AI FAQ의 AWS 기반 인프라와 EKS 내부 플랫폼을 관리합니다. `dev` 환경은 두 개의 Local State를 사용합니다.
 
-## Directory Structure
+## 구성 경계
 
-```text
-infra/terraform/
-├─ modules/
-│  ├─ vpc/
-│  ├─ ecr/
-│  ├─ eks/
-│  ├─ knowledge-base/
-│  ├─ workload-iam/
-│  └─ github-oidc/
-│
-└─ envs/dev/
-   ├─ infrastructure/
-   │  ├─ VPC, Subnet, IGW, NAT Gateway
-   │  ├─ ECR
-   │  ├─ EKS, Managed Node Group, Add-ons
-   │  ├─ S3 FAQ Bucket
-   │  ├─ S3 Vectors
-   │  ├─ Bedrock Knowledge Base
-   │  └─ Workload IAM Roles
-   │  ├─ SSM Deployment Parameters
-   │  └─ GitHub Actions OIDC Role
-   │
-   └─ platform/
-      ├─ AWS Load Balancer Controller
-      ├─ EKS Pod Identity Associations
-      ├─ chatbot-web/api Deployments
-      ├─ ClusterIP Services
-      ├─ ALB Ingress
-      ├─ NetworkPolicy
-      └─ PodDisruptionBudget
-```
+| Root Module | Provider | 관리 대상 |
+|---|---|---|
+| `envs/dev/infrastructure` | AWS | VPC, ECR, EKS, IAM, S3, S3 Vectors, Bedrock Knowledge Base, SSM, GitHub OIDC |
+| `envs/dev/platform` | AWS, Kubernetes, Helm | Pod Identity, ALB Controller, Namespace, Deployment, Service, Ingress, NetworkPolicy, PDB |
 
-Infrastructure와 Platform을 분리한 이유는 EKS 생성 전에 Kubernetes/Helm Provider가 EKS API에 접속하는 문제를 피하기 위해서다.
+Platform은 `terraform_remote_state`로 Infrastructure Output을 읽습니다. 생성은 Infrastructure → Platform, 삭제는 Platform → Infrastructure 순서입니다.
 
-Platform은 Infrastructure의 로컬 State Output을 `terraform_remote_state`로 읽는다.
+## 사전 조건
 
-## Before Apply
+- Terraform `>= 1.7.0`, AWS CLI, kubectl, Docker
+- 대상 리전 `ap-northeast-2`의 AWS 인증과 리소스 생성 권한
+- Nova Micro APAC Inference Profile 및 Titan Text Embeddings V2 사용 가능 상태
+- `eks_public_access_cidrs`를 작업자 Public IPv4 `/32`로 제한
+- `github_repository`, `github_deployment_branch`를 실제 배포 대상과 일치시킴
 
-1. AWS CLI 로그인 상태를 확인한다.
-2. `eks_public_access_cidrs`를 현재 PC의 Public IPv4 `/32`로 제한한다.
-3. Bedrock Nova Micro APAC Inference Profile이 활성 상태인지 확인한다.
-4. FAQ 문서는 Infrastructure 생성 후 S3에 업로드한다.
-5. ECR에 초기 `latest` 이미지가 없으면 Pod는 `ImagePullBackOff` 상태가 될 수 있다.
-6. `github_repository`과 `github_deployment_branch`가 실제 배포 저장소 및 브랜치와 일치하는지 확인한다.
-7. AWS Account에 `token.actions.githubusercontent.com` OIDC Provider가 이미 있다면
-   `github_oidc_provider_arn`에 기존 Provider ARN을 입력한다.
+`terraform.tfvars`와 State는 Commit하지 않습니다. AWS Access Key도 저장소 파일로 관리하지 않아야 합니다.
 
-## Infrastructure
+## 1. Infrastructure 배포
 
 ```powershell
 cd infra\terraform\envs\dev\infrastructure
-Copy-Item terraform.tfvars.example terraform.tfvars
-
 terraform init
 terraform fmt -recursive ..\..\..
 terraform validate
@@ -64,166 +32,60 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-EKS 접속 확인:
-
 ```powershell
-aws eks update-kubeconfig `
-  --region ap-northeast-2 `
-  --name gameops-ai-faq-dev
-
+aws eks update-kubeconfig --region ap-northeast-2 --name gameops-ai-faq-dev
 kubectl get nodes
 kubectl get pods -A
 ```
 
-FAQ 문서 업로드:
+Infrastructure는 GitHub Actions가 현재 리소스를 찾도록 `/gameops-ai-faq/dev` 아래에 ECR URL, S3 위치, Knowledge Base ID 등을 SSM Parameter로 기록합니다. GitHub에는 아래 결과를 Repository Variable `AWS_ROLE_ARN`으로 등록합니다.
+
+```powershell
+terraform output -raw github_actions_role_arn
+```
+
+## 2. 초기 이미지와 FAQ 문서
+
+Deployment의 초기 태그는 `latest`입니다. ECR에 이미지가 없으면 `ImagePullBackOff`가 발생하므로 Platform Apply 전에 `app-images.yml`을 실행하거나 직접 Push합니다.
+
+게임문의, 결제문의, 계정문의, 해킹/신고 FAQ를 수동 업로드할 경우:
 
 ```powershell
 $bucket = terraform output -raw knowledge_base_document_bucket
 aws s3 sync ..\..\..\..\..\knowledge-base "s3://$bucket/dev/" --delete
 ```
 
-문서 업로드만으로 Ingestion Job이 자동 실행되는 것은 아니다. 최초 검증에서는 AWS Console 또는 AWS CLI로 Data Source Sync를 실행한다.
+S3 업로드만으로 Ingestion Job이 시작되지는 않습니다. `knowledge-base-sync.yml` 또는 AWS CLI/Console에서 Data Source Sync를 시작해야 합니다.
 
-## Deployment Parameters
-
-Infrastructure Apply는 GitHub Actions가 사용할 현재 AWS 리소스 값을 SSM Parameter Store에 기록한다.
-
-```text
-/gameops-ai-faq/dev/aws-region
-/gameops-ai-faq/dev/eks/cluster-name
-/gameops-ai-faq/dev/ecr/web-repository-url
-/gameops-ai-faq/dev/ecr/api-repository-url
-/gameops-ai-faq/dev/kb/document-bucket
-/gameops-ai-faq/dev/kb/document-prefix
-/gameops-ai-faq/dev/kb/knowledge-base-id
-/gameops-ai-faq/dev/kb/data-source-id
-```
-
-Infrastructure를 Destroy하고 다시 Apply하면 동적으로 변경된 Knowledge Base ID, Data Source ID,
-S3 Bucket, ECR URL이 Parameter Store에 새 값으로 기록된다.
-
-확인:
-
-```powershell
-aws ssm get-parameters-by-path `
-  --path "/gameops-ai-faq/dev" `
-  --recursive `
-  --with-decryption
-```
-
-GitHub Actions Role ARN 확인:
-
-```powershell
-terraform output -raw github_actions_role_arn
-```
-
-이 ARN은 GitHub Repository의 `Settings > Secrets and variables > Actions > Variables`에서
-`AWS_ROLE_ARN`이라는 Repository Variable로 한 번 등록한다. 동일 AWS Account에서 Terraform이
-같은 이름의 Role을 재생성하면 ARN은 유지된다.
-
-GitHub Actions는 다음 권한만 가진다.
-
-- SSM 배포 Parameter 읽기
-- 두 ECR Repository에 Image Push
-- Knowledge Base 문서 Prefix에 S3 Sync
-- Bedrock Knowledge Base Ingestion Job 실행 및 조회
-
-EKS 접근 권한은 포함하지 않는다. EKS Deployment 변경은 로컬 PC의 `kubectl` 배포 스크립트가
-담당한다.
-
-## GitHub Actions
-
-`main` 브랜치의 `apps/` 변경은 Application Image Workflow를 실행한다.
-
-```text
-.github/workflows/app-images.yml
-```
-
-이 Workflow는 다음 작업만 수행한다.
-
-```text
-GitHub OIDC
-→ AWS IAM Role Assume
-→ SSM에서 현재 ECR URL 조회
-→ Linux Docker Image Build
-→ Commit SHA 및 latest Tag로 ECR Push
-```
-
-수동 실행에서는 `all`, `chatbot-api`, `chatbot-web` 중 하나를 선택할 수 있다.
-
-`main` 브랜치의 `knowledge-base/` 변경은 Knowledge Base Sync Workflow를 실행한다.
-
-```text
-.github/workflows/knowledge-base-sync.yml
-```
-
-```text
-Metadata JSON 검사
-→ SSM에서 현재 S3/Knowledge Base 값 조회
-→ S3 dev/ Prefix 동기화
-→ Bedrock Ingestion Job 실행
-→ COMPLETE 상태까지 대기
-```
-
-GitHub Actions IAM Role은 `orumpark94/GameOps-AI-FAQ` 저장소의 `main` 브랜치 OIDC Subject만
-신뢰한다. 다른 저장소 또는 브랜치는 Role을 Assume할 수 없다.
-
-## Local Application Deployment
-
-GitHub Actions에서 ECR Push가 완료되면 Workflow Summary의 Commit SHA를 사용한다.
-
-```powershell
-.\scripts\deploy-app.ps1 `
-  -Service all `
-  -ImageTag <GIT_COMMIT_SHA>
-```
-
-서비스 하나만 배포할 수도 있다.
-
-```powershell
-.\scripts\deploy-app.ps1 `
-  -Service chatbot-api `
-  -ImageTag <GIT_COMMIT_SHA>
-```
-
-스크립트 처리 순서:
-
-```text
-로컬 Terraform Output에서 Region, Cluster, ECR URL 조회
-→ AWS 로그인 확인
-→ kubeconfig 갱신
-→ ECR Image Tag 존재 확인
-→ kubectl set image
-→ kubectl rollout status
-```
-
-`all`은 chatbot-api를 먼저 배포한 뒤 chatbot-web을 배포한다.
-
-## Platform
-
-Infrastructure Apply와 EKS Node Ready 확인 후 실행한다.
+## 3. Platform 배포
 
 ```powershell
 cd ..\platform
-Copy-Item terraform.tfvars.example terraform.tfvars
-
 terraform init
 terraform validate
 terraform plan -out=tfplan
 terraform apply tfplan
-```
 
-확인:
-
-```powershell
 kubectl get pods -n gameops-chatbot-dev
 kubectl get ingress -n gameops-chatbot-dev
 terraform output load_balancer_hostname
 ```
 
-## Destroy
+`host_name`과 `acm_certificate_arn`이 `null`이면 HTTP 80으로 테스트합니다. 인증서 ARN이 있으면 HTTPS 443 Listener와 SSL Redirect를 사용합니다. DNS 레코드는 이 Terraform에서 생성하지 않습니다.
 
-삭제는 반드시 Platform부터 수행한다. Ingress를 먼저 삭제해야 AWS Load Balancer Controller가 ALB와 Target Group을 정리할 수 있다.
+## 배포 책임 경계
+
+`app-images.yml`은 OIDC로 AWS Role을 Assume하고 ECR에 Commit SHA와 `latest`를 Push합니다. 클러스터 배포는 로컬 스크립트가 담당합니다.
+
+```powershell
+.\scripts\deploy-app.ps1 -Service all -ImageTag <GIT_COMMIT_SHA>
+```
+
+Terraform은 Deployment 이미지 변경을 무시합니다. 이후 Platform Apply가 CI/CD에서 배포한 SHA 태그를 초기 태그로 되돌리지 않게 하는 의도적 경계입니다.
+
+`knowledge-base-sync.yml`은 각 Markdown의 메타데이터 파일 존재 여부와 JSON 문법을 검사하고 S3를 동기화한 뒤 Ingestion 완료를 확인합니다. 메타데이터 카테고리 값의 의미적 유효성까지 검사하지는 않습니다. GitHub Role은 지정 저장소·브랜치만 신뢰하며 SSM 읽기, 두 ECR Push, 지정 S3 Prefix, Ingestion 권한만 가집니다. EKS 배포 권한은 없습니다.
+
+## 삭제
 
 ```powershell
 cd infra\terraform\envs\dev\platform
@@ -233,24 +95,10 @@ cd ..\infrastructure
 terraform destroy
 ```
 
-## State
+Ingress를 먼저 제거해야 Controller가 ALB, Target Group, 관련 보안 그룹을 정리할 수 있습니다. 반대 순서는 VPC 삭제 실패나 잔여 리소스를 유발할 수 있습니다.
 
-현재는 로컬 PC에서만 Terraform을 실행하므로 Local State를 사용한다.
+## 비용과 State
 
-```text
-envs/dev/infrastructure/terraform.tfstate
-envs/dev/platform/terraform.tfstate
-```
+주요 상시 비용은 EKS Control Plane, `t3.medium` 노드 2대, NAT Gateway 1개, Internet-facing ALB와 Public IPv4입니다. Bedrock, S3, S3 Vectors는 사용량 기반입니다.
 
-State 파일은 Git에 Commit하지 않는다. State를 잃어버리면 `terraform destroy`로 리소스를 추적하기 어려우므로 실습 중에는 파일을 별도로 안전하게 백업한다.
-
-## Cost
-
-- NAT Gateway 1개
-- EKS Control Plane 1개
-- `t3.medium` Node 2개
-- Internet-facing ALB 1개
-- Public IPv4
-- Bedrock/S3 Vectors 사용량
-
-실습을 마친 후 즉시 Platform과 Infrastructure를 순서대로 삭제한다.
+Local State는 개인 개발용 선택입니다. State 유실 시 리소스 추적과 삭제가 어렵습니다. 팀·운영 환경에서는 암호화, 버전 관리, 접근 통제, State Locking을 제공하는 Remote Backend로 전환해야 합니다.
